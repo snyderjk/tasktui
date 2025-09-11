@@ -1,10 +1,10 @@
-use crate::app::App;
+use crate::app::{AddField, App, Mode};
 use ratatui::{
     Frame,
-    layout::{Constraint, Direction, Layout},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
-    text::Line,
-    widgets::{Block, Borders, List, ListItem},
+    text::{Line, Span, Text},
+    widgets::{Block, Borders, Clear, List, ListItem},
 };
 
 pub fn draw(frame: &mut Frame, app: &App) {
@@ -37,6 +37,16 @@ pub fn draw(frame: &mut Frame, app: &App) {
         .borders(Borders::ALL)
         .title("Details & Timer");
     frame.render_widget(right, chunks[1]);
+
+    if let Mode::Adding(form) = &app.mode {
+        let area = centered_rect(60, 50, frame.size());
+        frame.render_widget(Clear, area);
+
+        let block = Block::default().borders(Borders::ALL).title("Add Task");
+        let inner = block.inner(area);
+
+        frame.render_widget(block, area);
+    }
 }
 
 fn status_emoji(s: &crate::model::Status) -> &'static str {
@@ -46,4 +56,26 @@ fn status_emoji(s: &crate::model::Status) -> &'static str {
         crate::model::Status::Done => "✓",
         crate::model::Status::Archived => "⎌",
     }
+}
+
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    let horizontal = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1]);
+
+    horizontal[1]
 }
