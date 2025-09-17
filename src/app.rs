@@ -1,7 +1,7 @@
 use crate::db::Db;
 use crate::model::{Status, Task};
 use anyhow::Result;
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use uuid::Uuid;
 
 pub enum Mode {
@@ -68,12 +68,6 @@ impl App {
                 }
             }
             KeyCode::Char('a') => {
-                let num = self.tasks.len() + 1;
-                let t = Task::new(format!("Task {}", num).as_str());
-                self.db.insert_task(&t).await?;
-                self.tasks.insert(0, t);
-                self.selected = 0;
-
                 self.mode = Mode::Adding(AddForm {
                     title: String::new(),
                     notes: String::new(),
@@ -96,12 +90,67 @@ impl App {
 
     // pub async fn on_key_adding(&mut self, key: KeyEvent, form: &mut AddForm) -> Result<bool> {
     pub async fn on_key_adding(&mut self, key: KeyEvent) -> Result<bool> {
-        if key.code == KeyCode::Esc {
-            self.mode = Mode::Normal;
-            return Ok(false);
-        }
+        let form = match &mut self.mode {
+            Mode::Adding(f) => f,
+            _ => unreachable!(),
+        };
 
         match key.code {
+            KeyCode::Esc => {
+                self.mode = Mode::Normal;
+            }
+
+            KeyCode::Enter => {
+                if !form.title.trim().is_empty() {
+                    let mut t = Task::new(form.title.trim());
+                    t.notes = form.notes.trim().to_string();
+                    self.db.insert_task(&t).await?;
+
+                    self.tasks = self.db.list_active_tasks().await?;
+                    self.selected = 0;
+                    self.mode = Mode::Normal
+                }
+            }
+
+            KeyCode::Tab => {
+                form.field = match form.field {
+                    AddField::Title => AddField::Notes,
+                    AddField::Notes => AddField::Title,
+                };
+            }
+            KeyCode::BackTab => {
+                form.field = match form.field {
+                    AddField::Title => AddField::Notes,
+                    AddField::Notes => AddField::Title,
+                };
+            }
+            KeyCode::Backspace => {
+                let s = match form.field {
+                    AddField::Title => &mut form.title,
+                    AddField::Notes => &mut form.notes,
+                };
+                s.pop();
+            }
+            // Hacky fix for backspace, checks if Control+H was sent for backspace
+            KeyCode::Char('h') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                let s = match form.field {
+                    AddField::Title => &mut form.title,
+                    AddField::Notes => &mut form.notes,
+                };
+                s.pop();
+            }
+            KeyCode::Char(c) => {
+                if !key
+                    .modifiers
+                    .contains(KeyModifiers::CONTROL | KeyModifiers::ALT)
+                {
+                    let s = match form.field {
+                        AddField::Title => &mut form.title,
+                        AddField::Notes => &mut form.notes,
+                    };
+                    s.push(c);
+                }
+            }
             _ => {}
         }
 

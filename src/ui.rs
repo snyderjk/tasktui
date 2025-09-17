@@ -4,7 +4,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Clear, List, ListItem},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
 };
 
 pub fn draw(frame: &mut Frame, app: &App) {
@@ -46,6 +46,65 @@ pub fn draw(frame: &mut Frame, app: &App) {
         let inner = block.inner(area);
 
         frame.render_widget(block, area);
+
+        let inner_chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3),
+                Constraint::Min(5),
+                Constraint::Length(1),
+            ])
+            .split(inner);
+
+        let title_para = Paragraph::new(form.title.as_str())
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Title")
+                    .border_style(match form.field {
+                        AddField::Title => Style::default().fg(ratatui::style::Color::Yellow),
+                        _ => Style::default(),
+                    }),
+            )
+            .wrap(Wrap { trim: false });
+
+        let notes_para = Paragraph::new(form.notes.as_str())
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Notes")
+                    .border_style(match form.field {
+                        AddField::Notes => Style::default().fg(ratatui::style::Color::Yellow),
+                        _ => Style::default(),
+                    }),
+            )
+            .wrap(Wrap { trim: false });
+
+        let help = Paragraph::new(Text::from(vec![Line::from(vec![
+            Span::raw("Esc cancel   "),
+            Span::raw("Enter save   "),
+            Span::raw("Tab/Shift+Tab switch   "),
+        ])]))
+        .alignment(Alignment::Center);
+
+        frame.render_widget(title_para, inner_chunks[0]);
+        frame.render_widget(notes_para, inner_chunks[1]);
+        frame.render_widget(help, inner_chunks[2]);
+
+        match form.field {
+            AddField::Title => {
+                let x = inner_chunks[0].x + 1 + form.title.len() as u16;
+                let y = inner_chunks[0].y + 1;
+                frame.set_cursor(x, y);
+            }
+            AddField::Notes => {
+                let lines = form.notes.split('\n').collect::<Vec<_>>();
+                let last = lines.last().unwrap_or(&"");
+                let x = inner_chunks[1].x + 1 + last.len() as u16;
+                let y = inner_chunks[1].y + 1 + (lines.len().saturating_sub(1)) as u16;
+                frame.set_cursor(x, y);
+            }
+        }
     }
 }
 
