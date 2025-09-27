@@ -33,9 +33,13 @@ pub fn draw(frame: &mut Frame, app: &App) {
     let list = List::new(items).block(Block::default().borders(Borders::ALL).title("Tasks"));
     frame.render_widget(list, chunks[0]);
 
-    let right = Block::default()
-        .borders(Borders::ALL)
-        .title("Details & Timer");
+    let description = Line::from(app.tasks[app.selected].notes.clone());
+
+    let right = Paragraph::new(description).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title("Details & Timer"),
+    );
     frame.render_widget(right, chunks[1]);
 
     if let Mode::Adding(form) = &app.mode {
